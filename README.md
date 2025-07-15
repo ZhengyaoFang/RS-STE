@@ -79,13 +79,6 @@ uv run python inference.py --resume path/to/checkpoint
     year      = {2025},
     pages     = {13104-13113}
 }
-
-@article{fang2025recognition,
-  title={Recognition-Synergistic Scene Text Editing},
-  author={Fang, Zhengyao and Lyu, Pengyuan and Wu, Jingjing and Zhang, Chengquan and Yu, Jun and Lu, Guangming and Pei, Wenjie},
-  journal={arXiv preprint arXiv:2503.08387},
-  year={2025}
-}
 ```
 
 
