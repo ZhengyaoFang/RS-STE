@@ -71,6 +71,15 @@ uv run python inference.py --resume path/to/checkpoint
 
 ## 🎬 Citation
 ```
+@InProceedings{Fang_2025_CVPR,
+    author    = {Fang, Zhengyao and Lyu, Pengyuan and Wu, Jingjing and Zhang, Chengquan and Yu, Jun and Lu, Guangming and Pei, Wenjie},
+    title     = {Recognition-Synergistic Scene Text Editing},
+    booktitle = {Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR)},
+    month     = {June},
+    year      = {2025},
+    pages     = {13104-13113}
+}
+
 @article{fang2025recognition,
   title={Recognition-Synergistic Scene Text Editing},
   author={Fang, Zhengyao and Lyu, Pengyuan and Wu, Jingjing and Zhang, Chengquan and Yu, Jun and Lu, Guangming and Pei, Wenjie},
