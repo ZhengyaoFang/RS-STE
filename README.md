@@ -1,12 +1,11 @@
 # Recognition-Synergistic Scene Text Editing 🎨✨
-[![arXiv](https://img.shields.io/badge/arXiv-2503.08387-b31b1b.svg)](https://arxiv.org/abs/2503.08387)
+
+[arXiv](https://arxiv.org/abs/2503.08387)
 
 **CVPR 2025 | Official Implementation**
 This is an official implementation of RS-STE proposed by our paper "Recognition-Synergistic Scene Text Editing" (CVPR 2025).
 
-<div style="text-align: center;">
-    <img src="docs/examples.png" alt="examples" style="width: 67%;" />
-</div>
+
 
 ---
 
@@ -14,6 +13,7 @@ This is an official implementation of RS-STE proposed by our paper "Recognition-
 
 **Environment🌄**
 You can use uv to create the virtual environment:
+
 ```bash
 pip install uv # install uv
 uv venv # create virtual environment
@@ -24,6 +24,7 @@ uv pip install -r requirements.txt
 ```
 
 Or use conda:
+
 ```bash
 conda create -n rsste python=3.8
 conda activate rsste
@@ -47,6 +48,7 @@ Download it to your local directory and follow the dataset preparation steps bel
 Organize the annotation file into the following format and save it directly to `data/annotation/`. The annotation files are `.pkl` (pickle) files with the following structure:
 
 **For paired synthetic data (Stage 2 pretraining)**:
+
 ```python
 import pickle
 data = {
@@ -60,6 +62,7 @@ with open("data/annotation/train_annotations.pkl", "wb") as f:
 ```
 
 **For real data (Stage 3 cycle finetuning)** — note: no `image2_paths` needed:
+
 ```python
 import pickle
 data = {
@@ -72,6 +75,7 @@ with open("data/annotation/real_train.pkl", "wb") as f:
 ```
 
 **For inference**:
+
 ```python
 import pickle
 data = {
@@ -89,11 +93,13 @@ with open("data/annotation/inference_annotations.pkl", "wb") as f:
 We provide scripts to prepare annotations from common dataset formats.
 
 **For inference demo** (from example data):
+
 ```bash
 uv run python tools/dataset_prepare.py
 ```
 
 **For synthetic pair training** (from RS-STE-Dataset):
+
 ```bash
 uv run python tools/train_annotation_prepare.py \
     --mode synth \
@@ -102,6 +108,7 @@ uv run python tools/train_annotation_prepare.py \
 ```
 
 **For real data cycle training** (from scene text recognition datasets like Union14M):
+
 ```bash
 uv run python tools/train_annotation_prepare.py \
     --mode real \
@@ -111,6 +118,7 @@ uv run python tools/train_annotation_prepare.py \
 ```
 
 The recognition label file should have one line per image in the format:
+
 ```
 image_name.jpg HELLO WORLD
 ```
@@ -122,6 +130,7 @@ image_name.jpg HELLO WORLD
 Download the pretrained checkpoints here: [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) or [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
 
 Place the checkpoint in the `weights/` directory, then run:
+
 ```bash
 uv run python inference.py --resume path/to/checkpoint
 ```
@@ -132,13 +141,16 @@ uv run python inference.py --resume path/to/checkpoint
 
 RS-STE uses a **three-stage training pipeline**:
 
-| Stage | Description | Training Data | Key Losses |
-|-------|-------------|---------------|------------|
-| **Stage 1** | Continuous autoencoder pretraining | Unlabeled scene text images (Union14M, Tamper, etc.) | L1 Reconstruction + LPIPS + GAN |
-| **Stage 2** | Synthetic pair pretraining | Paired synthetic data (HuggingFace RS-STE-Dataset) | Image MSE + Perceptual + Recognition |
-| **Stage 3** | Real data cycle finetuning | Unpaired real scene text images | Cycle-consistency + Recognition |
+
+| Stage       | Description                        | Training Data                                        | Key Losses                           |
+| ----------- | ---------------------------------- | ---------------------------------------------------- | ------------------------------------ |
+| **Stage 1** | Continuous autoencoder pretraining | Unlabeled scene text images (Union14M, Tamper, etc.) | L1 Reconstruction + LPIPS + GAN      |
+| **Stage 2** | Synthetic pair pretraining         | Paired synthetic data (HuggingFace RS-STE-Dataset)   | Image MSE + Perceptual + Recognition |
+| **Stage 3** | Real data cycle finetuning         | Unpaired real scene text images                      | Cycle-consistency + Recognition      |
+
 
 The training flow is:
+
 1. **Stage 1** trains a continuous autoencoder to compress scene text images into a compact 3-channel latent space (8×32×3). The encoder maps 32×128 images to a 3-channel feature map; the decoder reconstructs images from this continuous latent. Only the **decoder** part is used in later stages (frozen).
 2. **Stage 2** trains the editing transformer on paired synthetic data to learn text editing directly in the continuous latent space.
 3. **Stage 3** finetunes on real images using cycle-consistency to bridge the domain gap.
@@ -176,17 +188,12 @@ This generates `data/train.txt` and `data/test.txt` containing paths to training
 From the `stage1_vqvae/` directory:
 
 ```bash
-# Train from scratch (random initialization):
-uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
-    --name d3_s8192 --gpus 0,1,2,3
-
-# Or initialize from our pretrained autoencoder checkpoint for faster convergence:
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
     --name d3_s8192 --gpus 0,1,2,3 \
     --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
 ```
 
-The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/` if you want to skip training from scratch.
+The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/`.
 
 **Key config**: `configs/d3_s8192_contiguously.yaml` — continuous autoencoder with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). No quantization is applied; the encoder outputs are used directly as continuous latent features.
 
@@ -220,6 +227,7 @@ uv run python main.py \
 ```
 
 **Key parameters in `configs/synth_pair.yaml`**:
+
 - `model.base_learning_rate`: 4.5e-06 (scaled by GPUs × batch_size × grad_accumulation)
 - `data.params.batch_size`: 8 per GPU
 - `data.params.train.params.size`: 32 (image height — images are resized to 32×128)
@@ -249,11 +257,13 @@ uv run python main.py \
 ```
 
 **Key parameters in `configs/real_cycle.yaml`**:
+
 - `model.training_mode`: "real_cycle" (enables cycle-consistency training)
 - `data.params.batch_size`: 4 per GPU (reduced due to cycle forward-backward pass)
 - Recognition loss weight is higher (50×) to maintain text editing accuracy
 
 **How cycle training works**: In the `real_cycle` mode, the model performs:
+
 1. Forward pass: image1 + rec2 → edit → image2_pred
 2. Cycle pass: image2_pred + rec1 → reconstruct → image1_pred
 3. Losses: image1_reconstruction (MSE + Perceptual) + recognition losses on both directions
@@ -262,19 +272,22 @@ This ensures the model learns to handle real-world image distributions while pre
 
 ### Training Arguments
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--name` | Experiment name | `rs-ste` |
-| `--vqgan_config` | Path to autoencoder decoder config | `configs/vqgan_decoder.yaml` |
-| `--transformer_config` | Path to transformer training config | `configs/synth_pair.yaml` |
-| `--resume` | Path to checkpoint for resume/finetune | `None` |
-| `--logdir` | Directory for logs and checkpoints | `logs` |
-| `--seed` | Random seed | `42` |
-| `--scale_lr` | Scale learning rate by GPUs×batch | `True` |
+
+| Argument               | Description                            | Default                      |
+| ---------------------- | -------------------------------------- | ---------------------------- |
+| `--name`               | Experiment name                        | `rs-ste`                     |
+| `--vqgan_config`       | Path to autoencoder decoder config     | `configs/vqgan_decoder.yaml` |
+| `--transformer_config` | Path to transformer training config    | `configs/synth_pair.yaml`    |
+| `--resume`             | Path to checkpoint for resume/finetune | `None`                       |
+| `--logdir`             | Directory for logs and checkpoints     | `logs`                       |
+| `--seed`               | Random seed                            | `42`                         |
+| `--scale_lr`           | Scale learning rate by GPUs×batch      | `True`                       |
+
 
 ### Training Configuration
 
 GPU configuration is set in `configs/lightning.yaml`:
+
 ```yaml
 trainer:
   accelerator: ddp
@@ -287,10 +300,12 @@ For Stage 1 autoencoder training, GPU config is passed via command line (`--gpus
 
 We provide the following pretrained checkpoints on HuggingFace (coming soon) and cloud drives:
 
-| Checkpoint | Stage | File | BaiduNetDisk | Google Drive |
-|-----------|-------|------|-------------|--------------|
-| Autoencoder | Stage 1 | `model_vqd3s8192f4.ckpt` | [Link](https://pan.baidu.com/s/12z_jftTVY9bseuvA0Xe2Hw?pwd=auql) | — |
-| RS-STE (full) | Stage 2+3 | `model.pth` | [Link](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) | [Link](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
+
+| Checkpoint    | Stage     | File                     | Download |
+| ------------- | --------- | ------------------------ | -------- |
+| Autoencoder   | Stage 1   | `model_vqd3s8192f4.ckpt` | TBD (will be uploaded to HuggingFace) |
+| RS-STE (full) | Stage 2+3 | `model.pth`              | [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) / [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
+
 
 > **Note**: The RS-STE checkpoint (`model.pth`) is self-contained — it includes both the transformer weights and the autoencoder decoder weights. You only need the autoencoder checkpoint if you're training from scratch.
 
@@ -317,13 +332,15 @@ This computes PSNR, SSIM, MSE, and FID between the generated and ground truth im
 For real scene text editing evaluation (e.g., Tamper-Scene):
 
 1. First generate edited images using inference:
+
 ```bash
 uv run python inference.py \
     --resume path/to/checkpoint \
     --target_path output/edited_images
 ```
 
-2. Then evaluate recognition accuracy:
+1. Then evaluate recognition accuracy:
+
 ```bash
 uv run python evaluation/eval_real.py \
     --image_folder output/edited_images \
@@ -331,9 +348,10 @@ uv run python evaluation/eval_real.py \
     --saved_model pretrained_model/TPS-ResNet-BiLSTM-Attn.pth
 ```
 
-> **Note**: The recognition evaluation requires a pretrained STR (Scene Text Recognition) model. Download the TPS-ResNet-BiLSTM-Attn model from [BaiduNetDisk](https://pan.baidu.com/s/12z_jftTVY9bseuvA0Xe2Hw?pwd=auql) and place it in `pretrained_model/`.
+> **Note**: The recognition evaluation requires a pretrained STR (Scene Text Recognition) model (`TPS-ResNet-BiLSTM-Attn.pth`). Download it and place in `pretrained_model/`. The checkpoint will be uploaded to HuggingFace.
 
 The evaluation script reports:
+
 - **Accuracy**: Percentage of correctly recognized edited text
 - **Normalized Edit Distance**: 1 - (edit distance / max length)
 
@@ -381,6 +399,7 @@ RS-STE/
 ---
 
 ## 🎬 Citation
+
 ```
 @InProceedings{Fang_2025_CVPR,
     author    = {Fang, Zhengyao and Lyu, Pengyuan and Wu, Jingjing and Zhang, Chengquan and Yu, Jun and Lu, Guangming and Pei, Wenjie},
@@ -392,6 +411,6 @@ RS-STE/
 }
 ```
 
-
 ## 📄 License
+
 RS-STE is under MIT.
