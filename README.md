@@ -134,28 +134,30 @@ RS-STE uses a **three-stage training pipeline**:
 
 | Stage | Description | Training Data | Key Losses |
 |-------|-------------|---------------|------------|
-| **Stage 1** | VQ-VAE pretraining | Unlabeled scene text images (Union14M, Tamper, etc.) | Reconstruction + LPIPS + GAN + Codebook |
+| **Stage 1** | Continuous autoencoder pretraining | Unlabeled scene text images (Union14M, Tamper, etc.) | L1 Reconstruction + LPIPS + GAN |
 | **Stage 2** | Synthetic pair pretraining | Paired synthetic data (HuggingFace RS-STE-Dataset) | Image MSE + Perceptual + Recognition |
 | **Stage 3** | Real data cycle finetuning | Unpaired real scene text images | Cycle-consistency + Recognition |
 
 The training flow is:
-1. **Stage 1** trains the VQ-VAE to compress scene text images into a compact latent space. Only the **decoder** part is used in later stages (frozen).
-2. **Stage 2** trains the editing transformer on paired synthetic data to learn text editing in the VQ-VAE latent space.
+1. **Stage 1** trains a continuous autoencoder to compress scene text images into a compact 3-channel latent space (8×32×3). The encoder maps 32×128 images to a 3-channel feature map; the decoder reconstructs images from this continuous latent. Only the **decoder** part is used in later stages (frozen).
+2. **Stage 2** trains the editing transformer on paired synthetic data to learn text editing directly in the continuous latent space.
 3. **Stage 3** finetunes on real images using cycle-consistency to bridge the domain gap.
 
 > **Pretrained checkpoints are available** for all stages. If you just want to run inference, skip to [Section 2️⃣](#2️⃣-inference). If you want to reproduce training from scratch, follow Stage 1 → Stage 2 → Stage 3 below.
 
 ---
 
-### Stage 1: VQ-VAE Pretraining
+### Stage 1: Continuous Autoencoder Pretraining
 
-The VQ-VAE compresses 32×128 scene text images into a 8×32×3 latent representation using a codebook of 8192 entries. This stage uses the code in `stage1_vqvae/`.
+The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 latent representation (no discretization — the encoder output is used directly). The latent has only 3 channels, making it compact enough for the GPT transformer to predict. This stage uses the code in `stage1_vqvae/`.
 
-#### Download Pretrained VQ-VAE Checkpoint
+> **Note**: Despite the module being named `VQModel` in the code, the quantization step is skipped — this is essentially a **continuous autoencoder** trained with L1 + LPIPS + GAN loss.
 
-The pretrained VQ-VAE checkpoint will be available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+#### Download Pretrained Autoencoder Checkpoint
 
-File: `model_vqd3s8192f4.ckpt` (contains encoder + decoder + codebook)
+The pretrained autoencoder checkpoint will be available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+
+File: `model_vqd3s8192f4.ckpt` (contains encoder + decoder) 
 
 #### Prepare Training Data
 
@@ -169,26 +171,26 @@ uv run python tools/create_data_file.py
 
 This generates `data/train.txt` and `data/test.txt` containing paths to training images.
 
-#### Launch VQ-VAE Training
+#### Launch Autoencoder Training
 
 From the `stage1_vqvae/` directory:
 
 ```bash
-# Stage 1a: Train with smaller codebook as warmup (optional)
+# Stage 1a: Train with larger latent dim as warmup (optional)
 uv run python main.py --base configs/d256_s1024.yaml -t True \
     --name d256_s1024 --gpus 0,1,2,3
 
-# Stage 1b: Train with final codebook (d=3, s=8192), initialized from warmup
+# Stage 1b: Train final autoencoder (embed_dim=3), initialized from warmup
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
     --name d3_s8192 --gpus 0,1,2,3 \
     --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
 ```
 
-The pretrained VQ-VAE checkpoint (`model_vqd3s8192f4.ckpt`) will be downloaded from HuggingFace to `pretrained_weights/`.
+The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/`.
 
 **Key configs**:
-- `configs/d3_s8192_contiguously.yaml`: Final config with `embed_dim=3, n_embed=8192` (matches `configs/vqgan_decoder.yaml`)
-- `configs/d256_s1024.yaml`: Intermediate warmup config with `embed_dim=256, n_embed=1024`
+- `configs/d3_s8192_contiguously.yaml`: Final config with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). Uses continuous autoencoder — no quantization applied.
+- `configs/d256_s1024.yaml`: Intermediate warmup config with `embed_dim=256`
 
 Checkpoints are saved to `logs/<timestamp>_<name>/checkpoints/`.
 
@@ -200,7 +202,7 @@ After Stage 1 training, the decoder weights are extracted and baked into the RS-
 
 ### Stage 2: Synthetic Pair Pretraining
 
-Train the editing transformer on paired synthetic data. Uses the frozen VQ-VAE decoder from Stage 1.
+Train the editing transformer on paired synthetic data. Uses the frozen autoencoder decoder from Stage 1.
 
 **Prerequisites**: Download the synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset).
 
@@ -265,7 +267,7 @@ This ensures the model learns to handle real-world image distributions while pre
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--name` | Experiment name | `rs-ste` |
-| `--vqgan_config` | Path to VQ-VAE decoder config | `configs/vqgan_decoder.yaml` |
+| `--vqgan_config` | Path to autoencoder decoder config | `configs/vqgan_decoder.yaml` |
 | `--transformer_config` | Path to transformer training config | `configs/synth_pair.yaml` |
 | `--resume` | Path to checkpoint for resume/finetune | `None` |
 | `--logdir` | Directory for logs and checkpoints | `logs` |
@@ -281,7 +283,7 @@ trainer:
   gpus: 0,1,2,3   # Modify according to your setup
 ```
 
-For Stage 1 VQ-VAE training, GPU config is passed via command line (`--gpus 0,1,2,3`).
+For Stage 1 autoencoder training, GPU config is passed via command line (`--gpus 0,1,2,3`).
 
 ### Pretrained Checkpoints
 
@@ -289,10 +291,10 @@ We provide the following pretrained checkpoints on HuggingFace (coming soon) and
 
 | Checkpoint | Stage | File | BaiduNetDisk | Google Drive |
 |-----------|-------|------|-------------|--------------|
-| VQ-VAE | Stage 1 | `model_vqd3s8192f4.ckpt` | [Link](https://pan.baidu.com/s/12z_jftTVY9bseuvA0Xe2Hw?pwd=auql) | — |
+| Autoencoder | Stage 1 | `model_vqd3s8192f4.ckpt` | [Link](https://pan.baidu.com/s/12z_jftTVY9bseuvA0Xe2Hw?pwd=auql) | — |
 | RS-STE (full) | Stage 2+3 | `model.pth` | [Link](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) | [Link](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
 
-> **Note**: The RS-STE checkpoint (`model.pth`) is self-contained — it includes both the transformer weights and the VQ-VAE decoder weights. You only need the VQ-VAE checkpoint if you're training from scratch.
+> **Note**: The RS-STE checkpoint (`model.pth`) is self-contained — it includes both the transformer weights and the autoencoder decoder weights. You only need the autoencoder checkpoint if you're training from scratch.
 
 ---
 
@@ -346,7 +348,7 @@ RS-STE/
 ├── configs/
 │   ├── synth_pair.yaml            # Stage 2: Synthetic pair training config
 │   ├── real_cycle.yaml            # Stage 3: Real data cycle training config
-│   ├── vqgan_decoder.yaml         # VQ-VAE decoder model config
+│   ├── vqgan_decoder.yaml         # Autoencoder decoder model config
 │   └── lightning.yaml             # PyTorch Lightning trainer config
 ├── data/
 │   ├── dataset.py                 # Dataset classes (TrainingDataset, InferenceDataset)
@@ -355,13 +357,13 @@ RS-STE/
 ├── model/
 │   ├── model.py                   # RS-STE main model (LightningModule)
 │   ├── minGPT.py                  # GPT transformer backbone
-│   ├── decoder.py                 # VQ-VAE decoder
+│   ├── decoder.py                 # Autoencoder decoder
 │   └── utils.py                   # String label converter, etc.
-├── stage1_vqvae/                  # Stage 1: VQ-VAE pretraining
-│   ├── main.py                    # VQ-VAE training entry point
-│   ├── configs/                   # VQ-VAE training configs
-│   ├── model/                     # VQ-VAE model (encoder + decoder + codebook)
-│   ├── dataset/                   # VQ-VAE dataset classes
+├── stage1_vqvae/                  # Stage 1: Continuous autoencoder pretraining
+│   ├── main.py                    # Autoencoder training entry point
+│   ├── configs/                   # Autoencoder training configs
+│   ├── model/                     # Autoencoder model (encoder + decoder)
+│   ├── dataset/                   # Autoencoder dataset classes
 │   └── tools/                     # Data preparation tools
 ├── evaluation/
 │   ├── evaluation_TamperSyn.py    # PSNR/SSIM/MSE/FID evaluation
