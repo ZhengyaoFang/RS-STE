@@ -127,12 +127,24 @@ image_name.jpg HELLO WORLD
 
 ## 2️⃣ Inference
 
-Download the pretrained checkpoints here: [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) or [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
+### Download Pretrained Checkpoints
 
-Place the checkpoint in the `weights/` directory, then run:
+All pretrained checkpoints are available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+
+Download and place them in the `weights/` directory:
+
+```
+weights/
+├── vae.ckpt     # Stage 1 autoencoder (decoder used by RS-STE)
+└── model.pth    # RS-STE full model (transformer + decoder, Stage 2+3)
+```
+
+Alternatively, the RS-STE checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
+
+### Run Inference
 
 ```bash
-uv run python inference.py --resume path/to/checkpoint
+uv run python inference.py --resume weights/model.pth
 ```
 
 ---
@@ -167,9 +179,9 @@ The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 
 
 #### Download Pretrained Autoencoder Checkpoint
 
-The pretrained autoencoder checkpoint will be available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+Download from HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
 
-File: `epoch=000002-step=000579999_continuously.ckpt` (contains encoder + decoder) 
+Place `vae.ckpt` in the `weights/` directory. This file contains the pretrained encoder + decoder from Stage 1 training.
 
 #### Prepare Training Data
 
@@ -196,10 +208,8 @@ Or download our pretrained autoencoder checkpoint and resume:
 ```bash
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
     --name d3_s8192 --gpus 0,1,2,3 \
-    --resume_from_checkpoint pretrained_model/epoch=000002-step=000579999_continuously.ckpt
+    --resume_from_checkpoint weights/vae.ckpt
 ```
-
-The pretrained autoencoder checkpoint (`epoch=000002-step=000579999_continuously.ckpt`) can be downloaded to `pretrained_model/`.
 
 **Key config**: `configs/d3_s8192_contiguously.yaml` — continuous autoencoder with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). No quantization is applied; the encoder outputs are used directly as continuous latent features.
 
@@ -218,7 +228,7 @@ When `--resume` is used (e.g., Stage 3 from Stage 2 checkpoint), the checkpoint 
 Train the editing transformer on paired synthetic data. The frozen autoencoder decoder is loaded from the checkpoint specified in `configs/vqgan_decoder.yaml`.
 
 **Prerequisites**:
-- Stage 1 autoencoder checkpoint (`epoch=000002-step=000579999_continuously.ckpt`) placed at `pretrained_model/`
+- Stage 1 autoencoder checkpoint (`vae.ckpt`) placed at `weights/` (automatically loaded via `configs/vqgan_decoder.yaml`)
 - Synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset)
 
 ```bash
@@ -308,16 +318,16 @@ For Stage 1 autoencoder training, GPU config is passed via command line (`--gpus
 
 ### Pretrained Checkpoints
 
-We provide the following pretrained checkpoints on HuggingFace (coming soon) and cloud drives:
+All checkpoints are available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints). Download and place them in the `weights/` directory:
 
+| File | Stage | Description |
+|------|-------|-------------|
+| `weights/vae.ckpt` | Stage 1 | Pretrained autoencoder (encoder + decoder). Required for Stage 2 training. |
+| `weights/model.pth` | Stage 2+3 | Full RS-STE model (transformer + decoder). Self-contained, ready for inference. |
 
-| Checkpoint    | Stage     | File                     | Download |
-| ------------- | --------- | ------------------------ | -------- |
-| Autoencoder   | Stage 1   | `epoch=000002-step=000579999_continuously.ckpt` | TBD (will be uploaded to HuggingFace) |
-| RS-STE (full) | Stage 2+3 | `model.pth`              | [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) / [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
+> The RS-STE checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
 
-
-> **Note**: The RS-STE checkpoint (`model.pth`) is self-contained — it includes both the transformer weights and the autoencoder decoder weights. You only need the autoencoder checkpoint if you're training from scratch.
+> **Note**: `model.pth` is self-contained (includes decoder weights). `vae.ckpt` is only needed if you want to train from scratch.
 
 ---
 
