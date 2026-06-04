@@ -169,7 +169,7 @@ The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 
 
 The pretrained autoencoder checkpoint will be available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
 
-File: `model_vqd3s8192f4.ckpt` (contains encoder + decoder) 
+File: `epoch=000002-step=000579999_continuously.ckpt` (contains encoder + decoder) 
 
 #### Prepare Training Data
 
@@ -189,11 +189,17 @@ From the `stage1_vqvae/` directory:
 
 ```bash
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
-    --name d3_s8192 --gpus 0,1,2,3 \
-    --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
+    --name d3_s8192 --gpus 0,1,2,3
 ```
 
-The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/`.
+Or download our pretrained autoencoder checkpoint and resume:
+```bash
+uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
+    --name d3_s8192 --gpus 0,1,2,3 \
+    --resume_from_checkpoint pretrained_model/epoch=000002-step=000579999_continuously.ckpt
+```
+
+The pretrained autoencoder checkpoint (`epoch=000002-step=000579999_continuously.ckpt`) can be downloaded to `pretrained_model/`.
 
 **Key config**: `configs/d3_s8192_contiguously.yaml` — continuous autoencoder with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). No quantization is applied; the encoder outputs are used directly as continuous latent features.
 
@@ -212,7 +218,7 @@ When `--resume` is used (e.g., Stage 3 from Stage 2 checkpoint), the checkpoint 
 Train the editing transformer on paired synthetic data. The frozen autoencoder decoder is loaded from the checkpoint specified in `configs/vqgan_decoder.yaml`.
 
 **Prerequisites**:
-- Stage 1 autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) placed at `pretrained_weights/`
+- Stage 1 autoencoder checkpoint (`epoch=000002-step=000579999_continuously.ckpt`) placed at `pretrained_model/`
 - Synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset)
 
 ```bash
@@ -307,7 +313,7 @@ We provide the following pretrained checkpoints on HuggingFace (coming soon) and
 
 | Checkpoint    | Stage     | File                     | Download |
 | ------------- | --------- | ------------------------ | -------- |
-| Autoencoder   | Stage 1   | `model_vqd3s8192f4.ckpt` | TBD (will be uploaded to HuggingFace) |
+| Autoencoder   | Stage 1   | `epoch=000002-step=000579999_continuously.ckpt` | TBD (will be uploaded to HuggingFace) |
 | RS-STE (full) | Stage 2+3 | `model.pth`              | [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) / [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
 
 
