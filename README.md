@@ -129,17 +129,25 @@ image_name.jpg HELLO WORLD
 
 ### Download Pretrained Checkpoints
 
-All pretrained checkpoints are available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+All pretrained checkpoints are available on HuggingFace: [https://huggingface.co/Nineve/RS-STE](https://huggingface.co/Nineve/RS-STE).
 
 Download and place them in the `weights/` directory:
 
+```bash
+# Install huggingface-cli if needed: pip install huggingface_hub
+huggingface-cli download Nineve/RS-STE vae.ckpt --local-dir weights/
+huggingface-cli download Nineve/RS-STE model.pth --local-dir weights/
+```
+
+After download, `weights/` should contain:
+
 ```
 weights/
-├── vae.ckpt     # Stage 1 autoencoder (decoder used by RS-STE)
+├── vae.ckpt     # Stage 1 autoencoder (encoder + decoder)
 └── model.pth    # RS-STE full model (transformer + decoder, Stage 2+3)
 ```
 
-Alternatively, the RS-STE checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
+> Alternatively, the RS-STE checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
 
 ### Run Inference
 
@@ -179,9 +187,11 @@ The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 
 
 #### Download Pretrained Autoencoder Checkpoint
 
-Download from HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+Download from [https://huggingface.co/Nineve/RS-STE](https://huggingface.co/Nineve/RS-STE) to `weights/`:
 
-Place `vae.ckpt` in the `weights/` directory. This file contains the pretrained encoder + decoder from Stage 1 training.
+```bash
+huggingface-cli download Nineve/RS-STE vae.ckpt --local-dir weights/
+```
 
 #### Prepare Training Data
 
@@ -318,7 +328,7 @@ For Stage 1 autoencoder training, GPU config is passed via command line (`--gpus
 
 ### Pretrained Checkpoints
 
-All checkpoints are available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints). Download and place them in the `weights/` directory:
+All checkpoints are available on HuggingFace: [RS-STE](https://huggingface.co/Nineve/RS-STE). Download and place them in the `weights/` directory:
 
 | File | Stage | Description |
 |------|-------|-------------|
@@ -368,7 +378,7 @@ uv run python evaluation/eval_real.py \
     --saved_model pretrained_model/TPS-ResNet-BiLSTM-Attn.pth
 ```
 
-> **Note**: The recognition evaluation requires a pretrained STR (Scene Text Recognition) model (`TPS-ResNet-BiLSTM-Attn.pth`). Download it and place in `pretrained_model/`. The checkpoint will be uploaded to HuggingFace.
+> **Note**: The recognition evaluation requires a pretrained STR (Scene Text Recognition) model (`TPS-ResNet-BiLSTM-Attn.pth`). Download it and place in `pretrained_model/`.
 
 The evaluation script reports:
 
