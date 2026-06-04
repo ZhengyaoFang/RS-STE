@@ -130,33 +130,89 @@ uv run python inference.py --resume path/to/checkpoint
 
 ## 3️⃣ Training
 
-RS-STE uses a two-stage training pipeline:
-1. **Stage 2 (Synthetic Pair Pretraining)**: Train on paired synthetic data with full supervision (image reconstruction + recognition loss).
-2. **Stage 3 (Real Data Cycle Finetuning)**: Finetune on unpaired real scene text images using cycle-consistency training to bridge the domain gap.
+RS-STE uses a **three-stage training pipeline**:
 
-> **Note**: Stage 1 refers to VQ-VAE decoder pretraining, which is frozen during RS-STE training. We provide the pretrained decoder checkpoint and you do not need to train it from scratch.
+| Stage | Description | Training Data | Key Losses |
+|-------|-------------|---------------|------------|
+| **Stage 1** | VQ-VAE pretraining | Unlabeled scene text images (Union14M, Tamper, etc.) | Reconstruction + LPIPS + GAN + Codebook |
+| **Stage 2** | Synthetic pair pretraining | Paired synthetic data (HuggingFace RS-STE-Dataset) | Image MSE + Perceptual + Recognition |
+| **Stage 3** | Real data cycle finetuning | Unpaired real scene text images | Cycle-consistency + Recognition |
 
-### Overview of Training Modes
+The training flow is:
+1. **Stage 1** trains the VQ-VAE to compress scene text images into a compact latent space. Only the **decoder** part is used in later stages (frozen).
+2. **Stage 2** trains the editing transformer on paired synthetic data to learn text editing in the VQ-VAE latent space.
+3. **Stage 3** finetunes on real images using cycle-consistency to bridge the domain gap.
 
-| Mode | Config File | Data Type | Supervision |
-|------|-------------|-----------|-------------|
-| `synth_pair` | `configs/synth_pair.yaml` | Paired synthetic (image1 → image2, with GT) | Image MSE + Perceptual Loss + Recognition Loss |
-| `real_cycle` | `configs/real_cycle.yaml` | Unpaired real data | Cycle-consistency: image1 → edit(image2_rec) → reconstruct(image1) + Recognition Loss |
+> **Pretrained checkpoints are available** for all stages. If you just want to run inference, skip to [Section 2️⃣](#2️⃣-inference). If you want to reproduce training from scratch, follow Stage 1 → Stage 2 → Stage 3 below.
+
+---
+
+### Stage 1: VQ-VAE Pretraining
+
+The VQ-VAE compresses 32×128 scene text images into a 8×32×3 latent representation using a codebook of 8192 entries. This stage uses the code in `stage1_vqvae/`.
+
+#### Download Pretrained VQ-VAE Checkpoint
+
+The pretrained VQ-VAE checkpoint will be available on HuggingFace: [RS-STE-Checkpoints](https://huggingface.co/Nineve/RS-STE-Checkpoints).
+
+File: `model_vqd3s8192f4.ckpt` (contains encoder + decoder + codebook)
+
+#### Prepare Training Data
+
+First, create the image list file for training:
+
+```bash
+cd stage1_vqvae
+# Edit tools/create_data_file.py to point to your scene text image directories
+uv run python tools/create_data_file.py
+```
+
+This generates `data/train.txt` and `data/test.txt` containing paths to training images.
+
+#### Launch VQ-VAE Training
+
+From the `stage1_vqvae/` directory:
+
+```bash
+# Stage 1a: Train with smaller codebook as warmup (optional)
+uv run python main.py --base configs/d256_s1024.yaml -t True \
+    --name d256_s1024 --gpus 0,1,2,3
+
+# Stage 1b: Train with final codebook (d=3, s=8192), initialized from warmup
+uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
+    --name d3_s8192 --gpus 0,1,2,3 \
+    --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
+```
+
+The pretrained VQ-VAE checkpoint (`model_vqd3s8192f4.ckpt`) will be downloaded from HuggingFace to `pretrained_weights/`.
+
+**Key configs**:
+- `configs/d3_s8192_contiguously.yaml`: Final config with `embed_dim=3, n_embed=8192` (matches `configs/vqgan_decoder.yaml`)
+- `configs/d256_s1024.yaml`: Intermediate warmup config with `embed_dim=256, n_embed=1024`
+
+Checkpoints are saved to `logs/<timestamp>_<name>/checkpoints/`.
+
+#### Extract Decoder for RS-STE
+
+After Stage 1 training, the decoder weights are extracted and baked into the RS-STE checkpoint used in Stage 2/3. We provide the extracted decoder as part of the released RS-STE checkpoint.
+
+---
 
 ### Stage 2: Synthetic Pair Pretraining
 
-First, download the synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset) and prepare the training annotations:
+Train the editing transformer on paired synthetic data. Uses the frozen VQ-VAE decoder from Stage 1.
+
+**Prerequisites**: Download the synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset).
 
 ```bash
+# Back in the RS-STE root directory
 # Prepare annotations from the downloaded dataset
 uv run python tools/train_annotation_prepare.py \
     --mode synth \
     --data_dir /path/to/RS-STE-Dataset \
     --output data/annotation/train_annotations.pkl
-```
 
-Then launch training:
-```bash
+# Launch Stage 2 training
 uv run python main.py \
     --name stage2_synth_pair \
     --vqgan_config configs/vqgan_decoder.yaml \
@@ -170,12 +226,14 @@ uv run python main.py \
 
 Training logs and checkpoints are saved to `logs/<timestamp>_<name>/`. Checkpoints are saved every 1000 training steps.
 
+---
+
 ### Stage 3: Real Data Cycle Finetuning
 
 After Stage 2 pretraining, finetune on real scene text data with cycle-consistency:
 
 ```bash
-# First, prepare real data annotations
+# Prepare real data annotations (e.g., from Union14M-L)
 uv run python tools/train_annotation_prepare.py \
     --mode real \
     --image_dir /path/to/real_scene_text_images \
@@ -196,7 +254,7 @@ uv run python main.py \
 - Recognition loss weight is higher (50×) to maintain text editing accuracy
 
 **How cycle training works**: In the `real_cycle` mode, the model performs:
-1. Forward pass: image1 + rec2 → edit image → image2_pred
+1. Forward pass: image1 + rec2 → edit → image2_pred
 2. Cycle pass: image2_pred + rec1 → reconstruct → image1_pred
 3. Losses: image1_reconstruction (MSE + Perceptual) + recognition losses on both directions
 
@@ -223,9 +281,18 @@ trainer:
   gpus: 0,1,2,3   # Modify according to your setup
 ```
 
-### Pretrained Backbone Checkpoints
+For Stage 1 VQ-VAE training, GPU config is passed via command line (`--gpus 0,1,2,3`).
 
-If you need to train from scratch, you'll need the VQ-VAE decoder checkpoint. The pretrained weights are included in our released checkpoint — the decoder weights are extracted and frozen during training. The VQ-VAE decoder is loaded from `configs/vqgan_decoder.yaml`.
+### Pretrained Checkpoints
+
+We provide the following pretrained checkpoints on HuggingFace (coming soon) and cloud drives:
+
+| Checkpoint | Stage | File | BaiduNetDisk | Google Drive |
+|-----------|-------|------|-------------|--------------|
+| VQ-VAE | Stage 1 | `model_vqd3s8192f4.ckpt` | [Link](https://pan.baidu.com/s/12z_jftTVY9bseuvA0Xe2Hw?pwd=auql) | — |
+| RS-STE (full) | Stage 2+3 | `model.pth` | [Link](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) | [Link](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link) |
+
+> **Note**: The RS-STE checkpoint (`model.pth`) is self-contained — it includes both the transformer weights and the VQ-VAE decoder weights. You only need the VQ-VAE checkpoint if you're training from scratch.
 
 ---
 
@@ -277,30 +344,36 @@ The evaluation script reports:
 ```
 RS-STE/
 ├── configs/
-│   ├── synth_pair.yaml        # Stage 2: Synthetic pair training config
-│   ├── real_cycle.yaml        # Stage 3: Real data cycle training config
-│   ├── vqgan_decoder.yaml     # VQ-VAE decoder model config
-│   └── lightning.yaml         # PyTorch Lightning trainer config
+│   ├── synth_pair.yaml            # Stage 2: Synthetic pair training config
+│   ├── real_cycle.yaml            # Stage 3: Real data cycle training config
+│   ├── vqgan_decoder.yaml         # VQ-VAE decoder model config
+│   └── lightning.yaml             # PyTorch Lightning trainer config
 ├── data/
-│   ├── dataset.py             # Dataset classes (TrainingDataset, InferenceDataset)
-│   ├── alphabet/              # Character alphabet files
-│   └── annotation/            # Annotation pickle files (generated)
+│   ├── dataset.py                 # Dataset classes (TrainingDataset, InferenceDataset)
+│   ├── alphabet/                  # Character alphabet files
+│   └── annotation/                # Annotation pickle files (generated)
 ├── model/
-│   ├── model.py               # RS-STE main model (LightningModule)
-│   ├── minGPT.py              # GPT transformer backbone
-│   ├── decoder.py             # VQ-VAE decoder
-│   └── utils.py               # String label converter, etc.
+│   ├── model.py                   # RS-STE main model (LightningModule)
+│   ├── minGPT.py                  # GPT transformer backbone
+│   ├── decoder.py                 # VQ-VAE decoder
+│   └── utils.py                   # String label converter, etc.
+├── stage1_vqvae/                  # Stage 1: VQ-VAE pretraining
+│   ├── main.py                    # VQ-VAE training entry point
+│   ├── configs/                   # VQ-VAE training configs
+│   ├── model/                     # VQ-VAE model (encoder + decoder + codebook)
+│   ├── dataset/                   # VQ-VAE dataset classes
+│   └── tools/                     # Data preparation tools
 ├── evaluation/
-│   ├── evaluation_TamperSyn.py  # PSNR/SSIM/MSE/FID evaluation
-│   ├── eval_real.py             # Recognition accuracy evaluation
-│   ├── eval_utils.py            # Evaluation utilities
-│   ├── rec_model/               # Scene text recognition model
-│   └── pytorch_fid/             # FID calculation
+│   ├── evaluation_TamperSyn.py    # PSNR/SSIM/MSE/FID evaluation
+│   ├── eval_real.py               # Recognition accuracy evaluation
+│   ├── eval_utils.py              # Evaluation utilities
+│   ├── rec_model/                 # Scene text recognition model
+│   └── pytorch_fid/               # FID calculation
 ├── tools/
-│   ├── dataset_prepare.py       # Inference annotation preparation
-│   └── train_annotation_prepare.py  # Training annotation preparation
-├── main.py                      # Training entry point
-├── inference.py                 # Inference entry point
+│   ├── dataset_prepare.py         # Inference annotation preparation
+│   └── train_annotation_prepare.py # Training annotation preparation
+├── main.py                        # RS-STE training entry point (Stage 2 & 3)
+├── inference.py                   # Inference entry point
 ├── requirements.txt
 └── README.md
 ```
