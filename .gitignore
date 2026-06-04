@@ -1,5 +1,6 @@
 logs
-weights
+weights/*.ckpt
+weights/*.pth
 results
 output
 data/annotation/*.pkl
