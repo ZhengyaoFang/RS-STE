@@ -16,8 +16,8 @@ from evaluation.eval_utils import devdata, fspecial_gauss
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--target_path', type=str, default='', help='results')
-parser.add_argument('--gt_path', type=str, default='/data/fzy/data/STE/Tamper/evaluation/Tamper-Syn2k/t_f_32*128', help='labels')
+parser.add_argument('--target_path', type=str, help='results')
+parser.add_argument('--gt_path', type=str, help='labels')
 parser.add_argument('--no_fid', action='store_true', default=False)
 args = parser.parse_args()
 img_path = args.target_path
