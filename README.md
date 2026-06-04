@@ -172,7 +172,7 @@ The training flow is:
 
 ### Stage 1: Continuous Autoencoder Pretraining
 
-The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 latent representation (no discretization — the encoder output is used directly). The latent has only 3 channels, making it compact enough for the GPT transformer to predict. This stage uses the code in `stage1_vqvae/`.
+The autoencoder compresses 32×128 scene text images into a continuous 8×32×3 latent representation (no discretization — the encoder output is used directly). The latent has only 3 channels, making it compact enough for the GPT transformer to predict. This stage uses the code in `stage1/`.
 
 > **Note**: Despite the module being named `VQModel` in the code, the quantization step is skipped — this is essentially a **continuous autoencoder** trained with L1 + LPIPS + GAN loss.
 
@@ -189,7 +189,7 @@ huggingface-cli download Nineve/RS-STE vae.ckpt --local-dir weights/
 First, create the image list file for training:
 
 ```bash
-cd stage1_vqvae
+cd stage1
 # Edit tools/create_data_file.py to point to your scene text image directories
 uv run python tools/create_data_file.py
 ```
@@ -198,7 +198,7 @@ This generates `data/train.txt` and `data/test.txt` containing paths to training
 
 #### Launch Autoencoder Training
 
-From the `stage1_vqvae/` directory:
+From the `stage1/` directory:
 
 ```bash
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
@@ -396,7 +396,7 @@ RS-STE/
 │   ├── minGPT.py                  # GPT transformer backbone
 │   ├── decoder.py                 # Autoencoder decoder
 │   └── utils.py                   # String label converter, etc.
-├── stage1_vqvae/                  # Stage 1: Continuous autoencoder pretraining
+├── stage1/                  # Stage 1: Continuous autoencoder pretraining
 │   ├── main.py                    # Autoencoder training entry point
 │   ├── configs/                   # Autoencoder training configs
 │   ├── model/                     # Autoencoder model (encoder + decoder)

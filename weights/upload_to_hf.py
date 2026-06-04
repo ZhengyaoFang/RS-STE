@@ -3,11 +3,11 @@ Upload RS-STE checkpoints to HuggingFace Hub.
 
 Usage:
     huggingface-cli login                          # login first
-    python weights/upload_to_hf.py                 # upload to Nineve/RS-STE-Checkpoints
+    python weights/upload_to_hf.py                 # upload to Nineve/RS-STE
 
 Files uploaded:
-    weights/vae.ckpt     →  RS-STE-Checkpoints/vae.ckpt
-    weights/model.pth    →  RS-STE-Checkpoints/model.pth
+    weights/vae.ckpt     →  RS-STE/vae.ckpt
+    weights/model.pth    →  RS-STE/model.pth
 
 This script itself is NOT uploaded (it's in .gitignore / excluded by path).
 """
@@ -15,7 +15,7 @@ This script itself is NOT uploaded (it's in .gitignore / excluded by path).
 import os
 from huggingface_hub import HfApi, create_repo
 
-REPO_ID = "Nineve/RS-STE-Checkpoints"
+REPO_ID = "Nineve/RS-STE"
 WEIGHTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 FILES = [

@@ -1,6 +1,7 @@
 logs
 weights/*.ckpt
 weights/*.pth
+weights/*.py
 results
 output
 data/annotation/*.pkl
