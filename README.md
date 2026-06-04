@@ -176,12 +176,17 @@ This generates `data/train.txt` and `data/test.txt` containing paths to training
 From the `stage1_vqvae/` directory:
 
 ```bash
+# Train from scratch (random initialization):
+uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
+    --name d3_s8192 --gpus 0,1,2,3
+
+# Or initialize from our pretrained autoencoder checkpoint for faster convergence:
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
     --name d3_s8192 --gpus 0,1,2,3 \
     --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
 ```
 
-The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/`.
+The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/` if you want to skip training from scratch.
 
 **Key config**: `configs/d3_s8192_contiguously.yaml` — continuous autoencoder with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). No quantization is applied; the encoder outputs are used directly as continuous latent features.
 
