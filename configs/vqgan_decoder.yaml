@@ -3,6 +3,7 @@ model:
   target: model.decoder.VQModel_Decoder
   params:
     embed_dim: 3
+    ckpt_path: pretrained_weights/model_vqd3s8192f4.ckpt  # Stage 1 autoencoder checkpoint
     ddconfig:
       double_z: false
       z_channels: 3

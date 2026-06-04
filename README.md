@@ -199,17 +199,21 @@ The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be download
 
 Checkpoints are saved to `logs/<timestamp>_<name>/checkpoints/`.
 
-#### Extract Decoder for RS-STE
+#### Loading Decoder into RS-STE
 
-After Stage 1 training, the decoder weights are extracted and baked into the RS-STE checkpoint used in Stage 2/3. We provide the extracted decoder as part of the released RS-STE checkpoint.
+The RS-STE model loads the frozen decoder via `configs/vqgan_decoder.yaml`, which specifies `ckpt_path` pointing to the Stage 1 autoencoder checkpoint. This ensures the decoder is initialized with pretrained weights even when training Stage 2 from scratch.
+
+When `--resume` is used (e.g., Stage 3 from Stage 2 checkpoint), the checkpoint already contains decoder weights (stored under `vqgan.*` keys), so those take precedence over the config.
 
 ---
 
 ### Stage 2: Synthetic Pair Pretraining
 
-Train the editing transformer on paired synthetic data. Uses the frozen autoencoder decoder from Stage 1.
+Train the editing transformer on paired synthetic data. The frozen autoencoder decoder is loaded from the checkpoint specified in `configs/vqgan_decoder.yaml`.
 
-**Prerequisites**: Download the synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset).
+**Prerequisites**:
+- Stage 1 autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) placed at `pretrained_weights/`
+- Synthetic dataset from [HuggingFace](https://huggingface.co/datasets/Nineve/RS-STE-Dataset)
 
 ```bash
 # Back in the RS-STE root directory
