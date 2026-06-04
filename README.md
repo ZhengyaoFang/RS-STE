@@ -127,27 +127,18 @@ image_name.jpg HELLO WORLD
 
 ## 2️⃣ Inference
 
-### Download Pretrained Checkpoints
+### Download Checkpoint
 
-All pretrained checkpoints are available on HuggingFace: [https://huggingface.co/Nineve/RS-STE](https://huggingface.co/Nineve/RS-STE).
-
-Download and place them in the `weights/` directory:
+The RS-STE checkpoint is available on HuggingFace: [https://huggingface.co/Nineve/RS-STE](https://huggingface.co/Nineve/RS-STE).
 
 ```bash
 # Install huggingface-cli if needed: pip install huggingface_hub
-huggingface-cli download Nineve/RS-STE vae.ckpt --local-dir weights/
 huggingface-cli download Nineve/RS-STE model.pth --local-dir weights/
 ```
 
-After download, `weights/` should contain:
+> **Note**: `model.pth` is **self-contained** — it includes both the transformer and the autoencoder decoder weights. Only this single file is needed for inference. `vae.ckpt` is only required if you plan to train from scratch (see [Section 3️⃣](#3️⃣-training)).
 
-```
-weights/
-├── vae.ckpt     # Stage 1 autoencoder (encoder + decoder)
-└── model.pth    # RS-STE full model (transformer + decoder, Stage 2+3)
-```
-
-> Alternatively, the RS-STE checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
+Alternatively, the checkpoint is also available on [BaiduNetDisk](https://pan.baidu.com/s/151EXQY5SdpETd3BS62dJYQ?pwd=db8s) and [Google Drive](https://drive.google.com/file/d/1ThBNiVR6JbgGXX1sy_2N9KXJZbmJEkSI/view?usp=drive_link).
 
 ### Run Inference
 
