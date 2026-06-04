@@ -176,11 +176,6 @@ This generates `data/train.txt` and `data/test.txt` containing paths to training
 From the `stage1_vqvae/` directory:
 
 ```bash
-# Stage 1a: Train with larger latent dim as warmup (optional)
-uv run python main.py --base configs/d256_s1024.yaml -t True \
-    --name d256_s1024 --gpus 0,1,2,3
-
-# Stage 1b: Train final autoencoder (embed_dim=3), initialized from warmup
 uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
     --name d3_s8192 --gpus 0,1,2,3 \
     --resume_from_checkpoint pretrained_weights/model_vqd3s8192f4.ckpt
@@ -188,9 +183,7 @@ uv run python main.py --base configs/d3_s8192_contiguously.yaml -t True \
 
 The pretrained autoencoder checkpoint (`model_vqd3s8192f4.ckpt`) can be downloaded from HuggingFace to `pretrained_weights/`.
 
-**Key configs**:
-- `configs/d3_s8192_contiguously.yaml`: Final config with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). Uses continuous autoencoder — no quantization applied.
-- `configs/d256_s1024.yaml`: Intermediate warmup config with `embed_dim=256`
+**Key config**: `configs/d3_s8192_contiguously.yaml` — continuous autoencoder with `embed_dim=3` (matches `configs/vqgan_decoder.yaml`). No quantization is applied; the encoder outputs are used directly as continuous latent features.
 
 Checkpoints are saved to `logs/<timestamp>_<name>/checkpoints/`.
 
