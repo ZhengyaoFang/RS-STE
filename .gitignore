@@ -7,3 +7,4 @@ data/annotation/*.pkl
 .vscode
 **/__pycache__/
 *.pyc
+.claude

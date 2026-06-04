@@ -21,15 +21,15 @@ data:
     batch_size: 4
     num_workers: 8
     train:
-      target: data.dataset.TrainDataset
+      target: data.dataset.TrainingDataset
       params:
-        training_annotation_file: 
+        annotation_file:
           - data/annotation/real_train.pkl
-        training_data_proportion:
+        data_proportion:
           - 1
         size: 32
     validation:
       target: data.dataset.InferenceDataset
       params:
-        test_annotation_file: data/annotation/real_test_annotations.pkl
+        annotation_file: data/annotation/real_test_annotations.pkl
         size: 32
