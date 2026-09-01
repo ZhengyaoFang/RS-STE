@@ -25,6 +25,12 @@ def crop_and_resize(x, size, ori_size, k):
 def main(args):
     decoder_config = OmegaConf.load(args.vqgan_config)
     config = OmegaConf.load(args.transformer_config)
+    # The full model checkpoint (--resume, e.g. weights/model.pth) already
+    # contains the decoder weights (stored under vqgan.* keys), so the
+    # standalone Stage 1 autoencoder checkpoint (weights/vae.ckpt) is not
+    # needed for inference. Clear it to avoid a spurious file-not-found error.
+    if "params" in decoder_config.model:
+        decoder_config.model.params.ckpt_path = None
     config.model.params.decoder_config = decoder_config.model
     config.model.params.ckpt_path = args.resume
     model = instantiate_from_config(config.model).to('cuda')
